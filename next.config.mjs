@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/.prisma/client/**/*"],
+  },
   experimental: {
     serverActions: { bodySizeLimit: "6mb" },
   },

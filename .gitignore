@@ -4,5 +4,6 @@ node_modules
 .env
 *.db
 *.db-journal
+*.tsbuildinfo
 storage
 next-env.d.ts

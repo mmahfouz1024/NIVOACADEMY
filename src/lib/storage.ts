@@ -5,7 +5,9 @@ import path from "node:path";
 import { MAX_RECEIPT_BYTES } from "./constants";
 
 export function storageRoot() {
-  return path.resolve(process.env.STORAGE_DIR || "./storage");
+  if (process.env.STORAGE_DIR) return path.resolve(process.env.STORAGE_DIR);
+  if (process.env.VERCEL) return "/tmp/storage";
+  return path.resolve("./storage");
 }
 
 type Detected = { ext: string; mime: string } | null;
