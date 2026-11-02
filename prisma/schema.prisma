@@ -1,0 +1,172 @@
+// NIVO Academy – database schema
+// Dev: SQLite. Production: change provider to "postgresql" and set DATABASE_URL accordingly.
+// Money is stored as whole Egyptian pounds (Int). Status/role fields are plain strings
+// (values defined in src/lib/constants.ts) so the schema works on SQLite and PostgreSQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         String   @default("STUDENT") // STUDENT | ADMIN
+  balance      Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  transactions WalletTransaction[]
+  topups       TopupRequest[]
+  enrollments  Enrollment[]
+  progress     LessonProgress[]
+}
+
+model Category {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  name    String
+  icon    String   @default("BookOpen")
+  order   Int      @default(0)
+  courses Course[]
+}
+
+model Course {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  title          String
+  subtitle       String   @default("")
+  description    String   @default("")
+  outcomes       String   @default("") // one learning outcome per line
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id])
+  level          String   @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
+  mode           String   @default("RECORDED") // RECORDED | LIVE | HYBRID
+  price          Int      @default(0)
+  oldPrice       Int?
+  thumbnail      String?
+  instructorName String   @default("")
+  instructorBio  String   @default("")
+  durationHours  Int      @default(0)
+  published      Boolean  @default(false)
+  featured       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  lessons     Lesson[]
+  enrollments Enrollment[]
+  liveSessions LiveSession[]
+
+  @@index([categoryId])
+  @@index([published])
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section     String   @default("")
+  title       String
+  description String   @default("")
+  videoUrl    String   @default("")
+  durationMin Int      @default(0)
+  order       Int      @default(0)
+  isFree      Boolean  @default(false)
+
+  progress LessonProgress[]
+
+  @@index([courseId, order])
+}
+
+model Enrollment {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  pricePaid       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  certificateCode String?   @unique
+
+  @@unique([userId, courseId])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([userId, lessonId])
+}
+
+// Append-only wallet ledger. `amount` is signed (+ credit / - debit).
+model WalletTransaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String // TOPUP | PURCHASE | REFUND | ADJUSTMENT
+  amount       Int
+  balanceAfter Int
+  note         String   @default("")
+  refId        String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model TopupRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Int
+  method      String // VODAFONE_CASH | INSTAPAY | BANK | OTHER
+  senderRef   String    @default("") // sender phone / name / transfer reference
+  receiptPath String
+  receiptHash String
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote   String    @default("")
+  createdAt   DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  @@index([status, createdAt])
+  @@index([receiptHash])
+}
+
+model LiveSession {
+  id          String   @id @default(cuid())
+  courseId    String?
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  title       String
+  description String   @default("")
+  startsAt    DateTime
+  durationMin Int      @default(60)
+  platform    String   @default("ZOOM") // ZOOM | MEET | JITSI | OTHER
+  joinUrl     String   @default("")
+  published   Boolean  @default(true)
+
+  @@index([startsAt])
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  detail    String   @default("")
+  createdAt DateTime @default(now())
+}

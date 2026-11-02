@@ -1,0 +1,12 @@
+# Automatic HTTPS (Let's Encrypt) – set SITE_DOMAIN in .env, e.g. academy.example.com
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	request_body {
+		max_size 8MB
+	}
+}
